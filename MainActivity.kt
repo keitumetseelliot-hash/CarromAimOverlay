@@ -12,44 +12,34 @@ import android.widget.Toast
 class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(50, 100, 50, 100)
+            setPadding(80, 150, 80, 80)
         }
-        
-        val btnPermission = Button(this).apply {
-            text = "1. Grant Overlay Permission"
+        val btn1 = Button(this).apply {
+            text = "1. Allow Overlay"
             setOnClickListener {
-                val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
-                startActivity(intent)
-                Toast.makeText(this@MainActivity, "Find Carrom Aim Overlay and turn ON", Toast.LENGTH_LONG).show()
+                startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
             }
         }
-        
-        val btnStart = Button(this).apply {
-            text = "2. START AIM OVERLAY"
+        val btn2 = Button(this).apply {
+            text = "2. START OVERLAY"
             setOnClickListener {
                 if (Settings.canDrawOverlays(this@MainActivity)) {
                     startService(Intent(this@MainActivity, OverlayService::class.java))
-                    Toast.makeText(this@MainActivity, "Overlay Started! Open Carrom Pool", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(this@MainActivity, "First grant permission!", Toast.LENGTH_SHORT).show()
-                }
+                    Toast.makeText(this@MainActivity, "Done! Open Carrom Pool", Toast.LENGTH_SHORT).show()
+                } else Toast.makeText(this@MainActivity, "First allow permission!", Toast.LENGTH_SHORT).show()
             }
         }
-        
-        val btnStop = Button(this).apply {
+        val btn3 = Button(this).apply {
             text = "3. STOP OVERLAY"
             setOnClickListener {
                 stopService(Intent(this@MainActivity, OverlayService::class.java))
-                Toast.makeText(this@MainActivity, "Overlay Stopped", Toast.LENGTH_SHORT).show()
             }
         }
-        
-        layout.addView(btnPermission)
-        layout.addView(btnStart)
-        layout.addView(btnStop)
+        layout.addView(btn1)
+        layout.addView(btn2)
+        layout.addView(btn3)
         setContentView(layout)
     }
 }
