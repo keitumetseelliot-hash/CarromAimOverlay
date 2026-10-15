@@ -10,12 +10,10 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - uses: gradle/actions/setup-gradle@v3
-
-      - name: Fix All Gradle Files
+      - name: Fix Project Structure
         run: |
           mkdir -p app/src/main/java/com/carrom/aimoverlay
           mkdir -p app/src/main/res/values
-
           mv -f AimOverlayView.kt app/src/main/java/com/carrom/aimoverlay/ 2>/dev/null || true
           mv -f MainActivity.kt app/src/main/java/com/carrom/aimoverlay/ 2>/dev/null || true
           mv -f OverlayService.kt app/src/main/java/com/carrom/aimoverlay/ 2>/dev/null || true
@@ -23,35 +21,32 @@ jobs:
           mv -f AndroidManifest.xml app/src/main/ 2>/dev/null || true
           mv -f colors.xml app/src/main/res/values/ 2>/dev/null || true
           mv -f strings.xml app/src/main/res/values/ 2>/dev/null || true
-          mv -f themes.xml app/src/main/res/values/ 2>/dev/null || true
+          mv -f proguard-rules.pro app/ 2>/dev/null || true
 
           cat > settings.gradle.kts << 'EOF'
           pluginManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
+              repositories { google(); mavenCentral(); gradlePluginPortal() }
           }
           dependencyResolutionManagement {
               repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-              repositories {
-                  google()
-                  mavenCentral()
-              }
+              repositories { google(); mavenCentral() }
           }
           rootProject.name = "CarromAimOverlay"
           include(":app")
           EOF
 
           cat > build.gradle.kts << 'EOF'
-          // Top-level build file
+          // Top-level
+          EOF
+
+          cat > app/src/main/res/values/themes.xml << 'EOF'
+          <resources>
+              <style name="Theme.CarromAimOverlay" parent="android:Theme.Material.Light.NoActionBar" />
+          </resources>
           EOF
 
           cat > app/build.gradle.kts << 'EOF'
-          plugins {
-              id("com.android.application") version "8.2.1"
-          }
+          plugins { id("com.android.application") version "8.2.1" }
           android {
               namespace = "com.carrom.aimoverlay"
               compileSdk = 34
@@ -71,24 +66,15 @@ jobs:
                   targetCompatibility = JavaVersion.VERSION_17
               }
           }
-          dependencies {}
+          dependencies {
+              implementation("com.google.android.material:material:1.11.0")
+          }
           EOF
-
-          # If gradle.properties missing, create it
-          if [! -f gradle.properties ]; then
-            echo "org.gradle.jvmargs=-Xmx2048m" > gradle.properties
-          fi
-
-          echo "=== Files Created ==="
-          cat settings.gradle.kts
-          echo "---"
-          cat app/build.gradle.kts
-          echo "---"
-          ls -R app/src/main
+          echo "Fixed theme and added material lib"
+          cat app/src/main/res/values/themes.xml
 
       - name: Build APK
         run: gradle assembleDebug
-
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
