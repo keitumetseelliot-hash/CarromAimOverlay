@@ -9,10 +9,97 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+      - uses: gradle/actions/setup-gradle@v3
+
+      - name: Fix Project Structure
+        run: |
+          echo "Fixing structure..."
+          mkdir -p app/src/main/java/com/carrom/aimoverlay
+          mkdir -p app/src/main/res/values
+
+          # Move kotlin files
+          mv -f AimOverlayView.kt app/src/main/java/com/carrom/aimoverlay/ 2>/dev/null || true
+          mv -f MainActivity.kt app/src/main/java/com/carrom/aimoverlay/ 2>/dev/null || true
+          mv -f OverlayService.kt app/src/main/java/com/carrom/aimoverlay/ 2>/dev/null || true
+          mv -f ScreenDetector.kt app/src/main/java/com/carrom/aimoverlay/ 2>/dev/null || true
+
+          # Move Android files
+          mv -f AndroidManifest.xml app/src/main/ 2>/dev/null || true
+          mv -f colors.xml app/src/main/res/values/ 2>/dev/null || true
+          mv -f strings.xml app/src/main/res/values/ 2>/dev/null || true
+          mv -f themes.xml app/src/main/res/values/ 2>/dev/null || true
+          mv -f proguard-rules.pro app/ 2>/dev/null || true
+
+          # Move gradle files if needed
+          if [ -f build.gradle.kts ] && [! -f app/build.gradle.kts ]; then
+            mv -f build.gradle.kts app/build.gradle.kts
+          fi
+          if [ -f settings.gradle.kts ] && [! -f app/../settings.gradle.kts ]; then
+            echo "settings exists in root, keeping"
+          fi
+          if [ -f gradle.properties ] && [! -f app/../gradle.properties ]; then
+            echo "gradle.properties exists"
+          fi
+
+          # Create root build.gradle.kts if missing
+          if [! -f build.gradle.kts ]; then
+            echo "plugins { id(\"com.android.application\") version \"8.2.0\" apply false }" > build.gradle.kts
+            echo "Creating root build.gradle.kts"
+          fi
+
+          # Create proper settings.gradle.kts if broken
+          cat > settings.gradle.kts << 'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "CarromAimOverlay"
+          include(":app")
+          EOF
+
+          # Create app/build.gradle.kts if still missing or to ensure it works
+          if [! -f app/build.gradle.kts ]; then
+            cat > app/build.gradle.kts << 'EOF'
+          plugins { id("com.android.application") }
+          android {
+              namespace = "com.carrom.aimoverlay"
+              compileSdk = 34
+              defaultConfig {
+                  applicationId = "com.carrom.aimoverlay"
+                  minSdk = 26
+                  targetSdk = 34
+                  versionCode = 1
+                  versionName = "1.0"
+              }
+              buildTypes {
+                  release { isMinifyEnabled = false }
+                  debug { isMinifyEnabled = false }
+              }
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+          }
+          dependencies {}
+          EOF
+          fi
+
+          echo "Structure fixed:"
+          find app -type f | head -20
+
       - name: Build APK
         run: gradle assembleDebug
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
