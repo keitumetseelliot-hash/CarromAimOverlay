@@ -1,45 +1,50 @@
-package com.carrom.aimoverlay
-
-import android.app.Activity
+ package com.carrom.aimoverlay
+import android.app.Service
 import android.content.Intent
-import android.net.Uri
-import android.os.Bundle
-import android.provider.Settings
-import android.widget.Button
-import android.widget.LinearLayout
-import android.widget.Toast
+import android.graphics.Color
+import android.graphics.PixelFormat
+import android.os.IBinder
+import android.view.*
+import android.widget.*
+import kotlin.concurrent.fixedRateTimer
 
-class MainActivity : Activity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+class OverlayService : Service() {
+    private var windowManager: WindowManager? = null
+    private var overlayView: View? = null
+    private val bot = TradingBot()
+    override fun onBind(intent: Intent?): IBinder? = null
+    override fun onCreate() {
+        super.onCreate()
+        windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(80, 150, 80, 80)
+            setBackgroundColor(Color.parseColor("#CC0A0E1A"))
+            setPadding(20,20,20,20)
         }
-        val btn1 = Button(this).apply {
-            text = "1. Allow Overlay"
-            setOnClickListener {
-                startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+        val status = TextView(this).apply { text="MFANAKAHTK ROBOT: SCALPING..."; setTextColor(Color.YELLOW); textSize=12f }
+        val signal = TextView(this).apply { text="Signal: ANALYZING..."; setTextColor(Color.CYAN); textSize=18f; setPadding(0,10,0,10) }
+        val broker = TextView(this).apply { text="Broker: ${BrokerManager.getFastest().name}"; setTextColor(Color.WHITE); textSize=10f }
+        layout.addView(status); layout.addView(signal); layout.addView(broker)
+        fixedRateTimer("scalp", false, 0L, 1000L) {
+            val fakeCandles = List(20) { Math.random()*1.2 }
+            val sig = bot.analyze(fakeCandles)
+            signal.post {
+                signal.text = "Signal: $sig"
+                signal.setTextColor(when(sig){ "BUY"->Color.GREEN; "SELL"->Color.RED; else->Color.CYAN })
             }
         }
-        val btn2 = Button(this).apply {
-            text = "2. START OVERLAY"
-            setOnClickListener {
-                if (Settings.canDrawOverlays(this@MainActivity)) {
-                    startService(Intent(this@MainActivity, OverlayService::class.java))
-                    Toast.makeText(this@MainActivity, "Done! Open Carrom Pool", Toast.LENGTH_SHORT).show()
-                } else Toast.makeText(this@MainActivity, "First allow permission!", Toast.LENGTH_SHORT).show()
-            }
-        }
-        val btn3 = Button(this).apply {
-            text = "3. STOP OVERLAY"
-            setOnClickListener {
-                stopService(Intent(this@MainActivity, OverlayService::class.java))
-            }
-        }
-        layout.addView(btn1)
-        layout.addView(btn2)
-        layout.addView(btn3)
-        setContentView(layout)
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT
+        ).apply { gravity = Gravity.TOP or Gravity.START; x=20; y=200 }
+        windowManager?.addView(layout, params)
+        overlayView = layout
+        bot.isRunning = true
+    }
+    override fun onDestroy() {
+        super.onDestroy()
+        overlayView?.let { windowManager?.removeView(it) }
+        bot.isRunning = false
     }
 }
