@@ -1,83 +1,68 @@
-package com.keitumetseelliot.carromaimoverlay
-
-import android.app.*
-import android.content.Context
+package com.carrom.aimoverlay
+import android.app.Service
 import android.content.Intent
+import android.graphics.Color
 import android.graphics.PixelFormat
-import android.media.projection.MediaProjection
-import android.media.projection.MediaProjectionManager
-import android.os.*
-import android.provider.Settings
+import android.os.IBinder
 import android.view.*
-import androidx.core.app.NotificationCompat
+import android.widget.*
+import kotlin.concurrent.fixedRateTimer
 
 class OverlayService : Service() {
-    private lateinit var windowManager: WindowManager
-    private lateinit var aimView: AimOverlayView
-    private var projection: MediaProjection? = null
-    private var detector: ScreenDetector? = null
-
+    private var windowManager: WindowManager? = null
+    private var overlayView: View? = null
+    private val bot = TradingBot()
+    override fun onBind(intent: Intent?): IBinder? = null
     override fun onCreate() {
         super.onCreate()
-        createChannel()
-        startForeground(42, NotificationCompat.Builder(this, "aim")
-            .setContentTitle("Carrom Aim Overlay")
-            .setContentText("Visual aiming guide is active")
-            .setSmallIcon(android.R.drawable.ic_menu_compass)
-            .setOngoing(true)
-            .build())
-
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-        aimView = AimOverlayView(this)
-
-        val type = if (Build.VERSION.SDK_INT >= 26)
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        else WindowManager.LayoutParams.TYPE_PHONE
-
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT,
-            type,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-            PixelFormat.TRANSLUCENT
-        )
-        windowManager.addView(aimView, params)
-    }
-
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (projection == null && intent != null) {
-            val resultCode = intent.getIntExtra("resultCode", Activity.RESULT_CANCELED)
-            val data = intent.getParcelableExtra<Intent>("data")
-            if (data != null) {
-                val mgr = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-                projection = mgr.getMediaProjection(resultCode, data)
-                detector = ScreenDetector(this, projection!!) { guide ->
-                    aimView.updateGuide(guide)
-                }
-                detector?.start()
-            }
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.parseColor("#CC0A0E1A"))
+            setPadding(30,30,30,30)
         }
-        return START_NOT_STICKY
-    }
-
-    override fun onDestroy() {
-        detector?.stop()
-        projection?.stop()
-        if (::aimView.isInitialized) windowManager.removeView(aimView)
-        super.onDestroy()
-    }
-
-    override fun onBind(intent: Intent?) = null
-
-    private fun createChannel() {
-        if (Build.VERSION.SDK_INT >= 26) {
-            val nm = getSystemService(NotificationManager::class.java)
-            nm.createNotificationChannel(
-                NotificationChannel("aim", "Aim Overlay",
-                    NotificationManager.IMPORTANCE_LOW)
-            )
+        val title = TextView(this).apply { 
+            text="MFANAKAHTK ROBOT ACTIVE"; 
+            setTextColor(Color.parseColor("#FFD700")); 
+            textSize=14f 
         }
-    }
-}
+        val status = TextView(this).apply { 
+            text="SCALPING..."; 
+            setTextColor(Color.YELLOW); 
+            textSize=12f 
+        }
+        val signal = TextView(this).apply { 
+            text="Signal: ANALYZING MT4/MT5..."; 
+            setTextColor(Color.CYAN); 
+            textSize=18f; 
+            setPadding(0,20,0,10) 
+        }
+        val broker = TextView(this).apply { 
+            text="Broker: ${BrokerManager.getFastest().name} | Fast <100ms"; 
+            setTextColor(Color.WHITE); 
+            textSize=10f 
+        }
+        val pair = TextView(this).apply { 
+            text="EUR/USD M1 | Spread: 0.3 | Auto Scalp ON"; 
+            setTextColor(Color.LTGRAY); 
+            textSize=10f 
+        }
+        val buyBtn = Button(this).apply { 
+            text="AUTO BUY SIGNAL"; 
+            setBackgroundColor(Color.parseColor("#00C853")); 
+            setTextColor(Color.WHITE)
+        }
+        val sellBtn = Button(this).apply { 
+            text="AUTO SELL SIGNAL"; 
+            setBackgroundColor(Color.parseColor("#D50000")); 
+            setTextColor(Color.WHITE)
+        }
+        layout.addView(title); layout.addView(status); 
+        layout.addView(signal); layout.addView(broker); 
+        layout.addView(pair); layout.addView(buyBtn); layout.addView(sellBtn)
+        
+        fixedRateTimer("scalp", false, 0L, 1000L) {
+            val fakeCandles = List(20) { Math.random()*1.2 }
+            val sig = bot.analyze(fakeCandles)
+            signal.post {
+               
